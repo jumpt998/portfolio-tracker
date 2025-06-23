@@ -42,11 +42,15 @@ df = pd.DataFrame(portfolio_data, columns=["Ticker", "Shares", "Price", "Value"]
 total_value = df["Value"].replace("N/A", 0).astype(float).sum()
 df["Allocation %"] = round((df["Value"].replace("N/A", 0).astype(float) / total_value) * 100, 2)
 
+df["Price"] = df["Price"].apply(lambda x: f"${x:,.2f}" if isinstance(x, (float, int)) else x)
+df["Value"] = df["Value"].apply(lambda x: f"${x:,.2f}" if isinstance(x, (float, int)) else x)
+
 st.subheader("📊 Portfolio Breakdown")
 st.dataframe(df)
 
 st.markdown(f"### 💰 Total Portfolio Value: ${total_value:,.2f}")
 
 if total_value > 0:
-    fig = px.pie(df, names="Ticker", values="Value", title="Portfolio Allocation", hole=0.4)
+    fig = px.pie(df, names="Ticker", values=df["Value"].replace('[\$,]', '', regex=True).astype(float),
+                 title="Portfolio Allocation", hole=0.4)
     st.plotly_chart(fig)
