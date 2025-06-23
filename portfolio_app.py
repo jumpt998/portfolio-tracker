@@ -1,7 +1,7 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.express as px
 
 st.set_page_config(page_title="Real-Time Portfolio Tracker", layout="centered")
 
@@ -9,7 +9,6 @@ st.title("📈 Real-Time Portfolio Tracker")
 
 st.sidebar.header("Enter Your Portfolio")
 
-# Default inputs
 default_tickers = "VOO, GOOGL, NU, GRAB, AMD, ASML, QCOM, TSM, XLU, IAU"
 tickers_input = st.sidebar.text_input("Tickers (comma-separated):", default_tickers)
 tickers = [t.strip().upper() for t in tickers_input.split(",") if t.strip()]
@@ -49,8 +48,41 @@ st.subheader("📊 Portfolio Breakdown")
 st.dataframe(df)
 st.markdown(f"### 💰 Total Portfolio Value: ${total_value:,.2f}")
 
-if total_value > 0:
-    fig, ax = plt.subplots()
-    ax.pie(df["Value"].replace("N/A", 0).astype(float), labels=df["Ticker"], autopct='%1.1f%%', startangle=90)
-    ax.axis("equal")
-    st.pyplot(fig)
+# Filter valid rows for charts
+df_valid = df[df["Value"] != "N/A"].copy()
+df_valid["Value"] = df_valid["Value"].astype(float)
+
+# Donut chart
+fig_donut = px.pie(
+    df_valid,
+    names="Ticker",
+    values="Value",
+    hole=0.4,
+    title="Portfolio Allocation by Value",
+    color_discrete_sequence=px.colors.qualitative.Set3
+)
+st.plotly_chart(fig_donut, use_container_width=True)
+
+# Bar chart
+fig_bar = px.bar(
+    df_valid,
+    x="Ticker",
+    y="Value",
+    text="Value",
+    title="Asset Value per Ticker",
+    color="Ticker"
+)
+fig_bar.update_traces(texttemplate='$%{text:.2s}', textposition='outside')
+fig_bar.update_layout(yaxis_title="USD", xaxis_title="", showlegend=False)
+st.plotly_chart(fig_bar, use_container_width=True)
+
+# Optional line chart per ticker
+if st.checkbox("📈 Show 7-Day Price Trends"):
+    trend_data = yf.download(tickers, period="7d", interval="1d", group_by="ticker", auto_adjust=True)
+    for ticker in tickers:
+        try:
+            prices = trend_data[ticker]["Close"]
+            fig_line = px.line(prices, title=f"{ticker} Price Trend (7D)")
+            st.plotly_chart(fig_line, use_container_width=True)
+        except Exception:
+            st.warning(f"No data for {ticker}")
